@@ -1,5 +1,11 @@
 Changelog
 =========
+0.3.4 (2024-04-04)
+------------------
+This is an experimental feature only.  
+    FEATURES, IMPROVEMENTS:
+      - Added ability to read headers stored in dxd files 
+
 
 0.3.3 (2023-09-06)
 ------------------

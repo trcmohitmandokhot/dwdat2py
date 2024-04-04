@@ -629,3 +629,90 @@ STORING_TYPE = {
     2: 'ST_FAST_ON_TRIGGER',
     3: 'ST_FAST_ON_TRIGGER_SLOW_OTH'
 }
+
+# --------------------------------------------------------------------
+
+_get_header_entry_count = _lib.DWGetHeaderEntryCount
+_get_header_entry_count.restype = ct.c_int
+def get_header_entry_count():
+    """Return the number of data header entries.
+
+    Wraps:
+        int DWGetHeaderEntryCount();"""
+
+    num = _get_header_entry_count()
+    if num == -1:
+        raise RuntimeError('get_header_entry_count returned -1')
+    return num
+
+# --------------------------------------------------------------------
+
+Header = namedtuple('Header', ('index', 'name', 'unit', 'description',
+                                 'color', 'array_size', 'data_type'))
+_get_header_entry_list = _lib.DWGetHeaderEntryList
+_get_header_entry_list.argtypes = (ct.POINTER(dh.DWChannel),)
+_get_header_entry_list.restype = ct.c_int
+def get_header_entry_list(encoding=None):
+    """Return a list with namedtuples with info on each header entry.
+
+    `encoding` if given is used to decode the bytes retreived as the
+    `name`, `unit` and `description` components of the channel info. If
+    not given, `locale.getpreferredencoding()` is used.
+
+    Wraps
+        DWStatus DWGetHeaderEntryList(DWChannel* channel_list);
+
+    """
+
+    hd_list = (dh.DWChannel * get_header_entry_count())()
+    stat = _get_header_entry_list(hd_list)
+    if stat != 0:
+        raise RuntimeError(dh.DWStatus(stat).name)
+    encoding = encoding or locale.getpreferredencoding()
+    res = []
+    for hd in hd_list:
+        res.append(Header(hd.index, hd.name.decode(encoding),
+                           hd.unit.decode(encoding),
+                           hd.description.decode(encoding),
+                           hd.color, hd.array_size, hd.data_type))
+    return res
+
+# --------------------------------------------------------------------
+
+# DWStatus DWGetHeaderEntryText(int ch_index, char* text_value, int text_value_size);
+# Parameters:
+#       ch_index – ch. identifier
+#       text_value – entry value
+#       text_value_size – maximum size of the entry value
+# Return value: See above enumerator
+# Description: This function returns the data of field in the project header.
+
+_get_header_entry_text = _lib.DWGetHeaderEntryText
+_get_header_entry_text.argtypes = (ct.c_int, ct.c_char_p, ct.c_int)
+_get_header_entry_text.restype = ct.c_int
+
+def get_header_entry_text(ch_index, text_value_size=255, encoding=None):
+    """Return the given header entry value as a string.
+
+    ch_index : int
+        The header enumeration.
+
+    text_value_size : int
+        The maximum expected length of the string.
+
+    encoding : str (or None)
+        `locale.getpreferredencoding()` is used if `encding` is None.
+
+    Wraps
+        DWStatus DWGetHeaderEntryText(int ch_index, char* text_value, int text_value_size);
+
+    """
+
+    textbuffer = ct.create_string_buffer(text_value_size + 1)
+    stat = _get_header_entry_text(ch_index, textbuffer, text_value_size)
+    if stat != 0:
+        raise RuntimeError(dh.DWStatus(stat.name))
+
+    return textbuffer.value.decode(encoding or locale.getpreferredencoding())
+
+# --------------------------------------------------------------------
